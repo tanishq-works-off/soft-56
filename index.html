@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Gemology Card System</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<style>
+body {
+    font-family: Arial;
+    background: #f5f5f5;
+    padding: 20px;
+}
+.container {
+    max-width: 900px;
+    margin: auto;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+}
+input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 5px 0;
+}
+button {
+    background: black;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+.record {
+    display: flex;
+    justify-content: space-between;
+    border: 2px solid #000;
+    padding: 15px;
+    margin-top: 15px;
+}
+.left { width: 60%; }
+.right { width: 35%; text-align: center; }
+.main-img { width: 200px; margin-bottom: 10px; }
+</style>
+</head>
+
+<body>
+
+<div class="container">
+    <h2>Gemology System</h2>
+
+    <input id="colour" placeholder="Colour">
+    <input id="mounted" placeholder="Mounted">
+    <input id="weight" placeholder="Weight">
+    <input id="measurements" placeholder="Measurements">
+    <input id="shape" placeholder="Shape">
+    <input id="faces" placeholder="Faces">
+    <input id="test" placeholder="Test">
+    <input id="comments" placeholder="Comments">
+    <input type="file" id="image">
+
+    <button onclick="saveRecord()">Save</button>
+    <button onclick="openPrintPage()">Print A4 Cards</button>
+
+    <div id="records"></div>
+</div>
+
+<script>
+
+let records = JSON.parse(localStorage.getItem("records")) || [];
+let serial = parseInt(localStorage.getItem("serial")) || 1;
+
+function saveRecord() {
+    let imageFile = document.getElementById("image").files[0];
+
+    let data = {
+        serial: serial,
+        colour: colour.value,
+        mounted: mounted.value,
+        weight: weight.value,
+        measurements: measurements.value,
+        shape: shape.value,
+        faces: faces.value,
+        test: test.value,
+        comments: comments.value,
+        image: ""
+    };
+
+    if (imageFile) {
+        let reader = new FileReader();
+        reader.onload = function(e) {
+            data.image = e.target.result;
+            finalizeSave(data);
+        };
+        reader.readAsDataURL(imageFile);
+    } else {
+        finalizeSave(data);
+    }
+}
+
+function finalizeSave(data) {
+    records.push(data);
+    localStorage.setItem("records", JSON.stringify(records));
+    serial++;
+    localStorage.setItem("serial", serial);
+    displayRecords();
+}
+
+function displayRecords() {
+    let container = document.getElementById("records");
+    container.innerHTML = "";
+
+    records.forEach((r, i) => {
+        let div = document.createElement("div");
+        div.className = "record";
+
+        div.innerHTML = `
+            <div class="left">
+                <b>SR:</b> ${r.serial}<br>
+                <b>Colour:</b> ${r.colour}<br>
+                <b>Mounted:</b> ${r.mounted}<br>
+                <b>Weight:</b> ${r.weight}<br>
+                <b>Measurements:</b> ${r.measurements}<br>
+                <b>Shape:</b> ${r.shape}<br>
+                <b>Faces:</b> ${r.faces}<br>
+                <b>Test:</b> ${r.test}<br>
+                <b>Comments:</b> ${r.comments}
+            </div>
+            <div class="right">
+                ${r.image ? `<img class="main-img" src="${r.image}">` : ""}
+                <div id="qr${i}"></div>
+            </div>
+        `;
+
+        container.appendChild(div);
+
+        setTimeout(() => {
+            new QRCode(document.getElementById(`qr${i}`), {
+                text: JSON.stringify(r),
+                width: 120,
+                height: 120
+            });
+        }, 100);
+    });
+}
+
+function openPrintPage() {
+
+    let win = window.open("", "_blank");
+
+    let html = `
+    <html>
+    <head>
+    <title>Print Cards</title>
+    <style>
+    body { font-family: Arial; margin: 20px; }
+    .grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 20px;
+    }
+    .card {
+        border: 2px solid black;
+        padding: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+    .left { width: 60%; font-size: 12px; }
+    .right { width: 35%; text-align: center; }
+    img { width: 100px; }
+
+    @media print {
+        body { margin: 0; }
+    }
+    </style>
+    </head>
+    <body>
+
+    <h2>Gemology Cards</h2>
+    <div class="grid" id="grid"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+
+    <script>
+    let records = ${JSON.stringify(records)};
+    let container = document.getElementById("grid");
+
+    records.forEach((r, i) => {
+        let div = document.createElement("div");
+        div.className = "card";
+
+        div.innerHTML = \`
+            <div class="left">
+                SR: \${r.serial}<br>
+                Colour: \${r.colour}<br>
+                Weight: \${r.weight}<br>
+                Shape: \${r.shape}<br>
+                Test: \${r.test}
+            </div>
+            <div class="right">
+                \${r.image ? `<img src="\${r.image}">` : ""}
+                <div id="qr\${i}"></div>
+            </div>
+        \`;
+
+        container.appendChild(div);
+
+        setTimeout(() => {
+            new QRCode(document.getElementById("qr"+i), {
+                text: JSON.stringify(r),
+                width: 80,
+                height: 80
+            });
+        }, 100);
+    });
+
+    window.print();
+    <\/script>
+
+    </body>
+    </html>
+    `;
+
+    win.document.write(html);
+    win.document.close();
+}
+
+displayRecords();
+
+</script>
+
+</body>
+</html>
